@@ -16,7 +16,17 @@
         .bt-badge.connected { color: #10b981; background: rgba(16, 185, 129, 0.1); }
         .dot { height: 8px; width: 8px; background: currentColor; border-radius: 50%; display: inline-block; }
 
-        /* Content Area */
+        /* Login Screen */
+        #login-screen { padding: 40px 20px; text-align: center; margin: auto 0; }
+        #login-screen h2 { color: #10b981; margin-bottom: 10px; font-size: 22px; }
+        .input-box { width: 100%; padding: 14px; margin: 15px 0; border-radius: 10px; border: 1px solid #374151; background: #1f2937; color: #fff; font-size: 16px; text-align: center; outline: none; }
+        .input-box:focus { border-color: #10b981; }
+        .btn-green { width: 100%; padding: 14px; background: #10b981; color: #030712; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; }
+        .btn-green:active { opacity: 0.9; }
+        .dev-id-tag { margin-top: 20px; font-size: 11px; color: #9ca3af; background: #1f2937; padding: 8px; border-radius: 6px; border: 1px dashed #374151; }
+
+        /* Main App Area */
+        #main-app { display: none; flex-direction: column; flex: 1; justify-content: space-between; }
         .content { padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
 
         /* Professional Scale Display */
@@ -47,60 +57,149 @@
 <body>
 
 <div class="app-wrapper">
-    <!-- Header -->
-    <div class="header">
-        <div class="header-title">Smart Scale Pro</div>
-        <div id="top-bt-badge" class="bt-badge">
-            <span class="dot"></span> <span id="top-bt-text">Disconnected</span>
-        </div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen">
+        <h2>🔒 Access Control</h2>
+        <p style="color:#9ca3af; font-size:13px; margin-top:5px;">Enter your registered Access Key</p>
+        <input type="text" id="access-key" class="input-box" placeholder="Enter Access Key">
+        <button id="unlock-btn" class="btn-green" onclick="verifyAccess()">Unlock App</button>
+        <p id="error-msg" style="color:#ef4444; font-size:13px; margin-top:12px; display:none;"></p>
+        <div class="dev-id-tag">📱 Device ID: <span id="show-dev-id" style="color:#10b981; font-weight:bold;">Loading...</span></div>
     </div>
 
-    <!-- Main Content -->
-    <div class="content">
-        <div>
-            <!-- Display Box -->
-            <div class="display-card">
-                <span class="display-label">Target Weight Output</span>
-                <span class="weight-value" id="display">0.000</span>
-                <span class="unit">kg</span>
-            </div>
-
-            <!-- Quick Presets -->
-            <div class="preset-grid">
-                <button class="preset-btn" onclick="setPreset('5.000')">5 Kg</button>
-                <button class="preset-btn" onclick="setPreset('10.000')">10 Kg</button>
-                <button class="preset-btn" onclick="setPreset('20.500')">20.5 Kg</button>
-                <button class="preset-btn" onclick="setPreset('35.000')">35 Kg</button>
-            </div>
-
-            <!-- Keypad Layout -->
-            <div class="keypad">
-                <button class="key" onclick="pressKey('1')">1</button>
-                <button class="key" onclick="pressKey('2')">2</button>
-                <button class="key" onclick="pressKey('3')">3</button>
-                <button class="key" onclick="pressKey('4')">4</button>
-                <button class="key" onclick="pressKey('5')">5</button>
-                <button class="key" onclick="pressKey('6')">6</button>
-                <button class="key" onclick="pressKey('7')">7</button>
-                <button class="key" onclick="pressKey('8')">8</button>
-                <button class="key" onclick="pressKey('9')">9</button>
-                <button class="key" onclick="pressKey('.')">.</button>
-                <button class="key" onclick="pressKey('0')">0</button>
-                <button class="key key-clear" onclick="clearDisplay()">C</button>
-                <button class="key key-apply" onclick="applyWeight()">⚡ APPLY & TRANSMIT WEIGHT</button>
+    <!-- MAIN APP -->
+    <div id="main-app">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">Smart Scale Pro</div>
+            <div id="top-bt-badge" class="bt-badge">
+                <span class="dot"></span> <span id="top-bt-text">Disconnected</span>
             </div>
         </div>
 
-        <!-- Bluetooth Management -->
-        <div class="bt-card">
-            <div style="font-size: 13px; font-weight: 600; color: #9ca3af; margin-bottom: 4px;">Hardware Link</div>
-            <button class="scan-btn" onclick="scanAndConnect()">🔍 Connect Bluetooth Device</button>
-            <button id="disconnect-btn" class="disconnect-btn" onclick="disconnectBT()">❌ Disconnect Device</button>
+        <!-- Main Content -->
+        <div class="content">
+            <div>
+                <!-- Display Box -->
+                <div class="display-card">
+                    <span class="display-label">Target Weight Output</span>
+                    <span class="weight-value" id="display">0.000</span>
+                    <span class="unit">kg</span>
+                </div>
+
+                <!-- Quick Presets -->
+                <div class="preset-grid">
+                    <button class="preset-btn" onclick="setPreset('5.000')">5 Kg</button>
+                    <button class="preset-btn" onclick="setPreset('10.000')">10 Kg</button>
+                    <button class="preset-btn" onclick="setPreset('20.500')">20.5 Kg</button>
+                    <button class="preset-btn" onclick="setPreset('35.000')">35 Kg</button>
+                </div>
+
+                <!-- Keypad Layout -->
+                <div class="keypad">
+                    <button class="key" onclick="pressKey('1')">1</button>
+                    <button class="key" onclick="pressKey('2')">2</button>
+                    <button class="key" onclick="pressKey('3')">3</button>
+                    <button class="key" onclick="pressKey('4')">4</button>
+                    <button class="key" onclick="pressKey('5')">5</button>
+                    <button class="key" onclick="pressKey('6')">6</button>
+                    <button class="key" onclick="pressKey('7')">7</button>
+                    <button class="key" onclick="pressKey('8')">8</button>
+                    <button class="key" onclick="pressKey('9')">9</button>
+                    <button class="key" onclick="pressKey('.')">.</button>
+                    <button class="key" onclick="pressKey('0')">0</button>
+                    <button class="key key-clear" onclick="clearDisplay()">C</button>
+                    <button class="key key-apply" onclick="applyWeight()">⚡ APPLY & TRANSMIT WEIGHT</button>
+                </div>
+            </div>
+
+            <!-- Bluetooth Management -->
+            <div class="bt-card">
+                <div style="font-size: 13px; font-weight: 600; color: #9ca3af; margin-bottom: 4px;">Hardware Link</div>
+                <button class="scan-btn" onclick="scanAndConnect()">🔍 Connect Bluetooth Device</button>
+                <button id="disconnect-btn" class="disconnect-btn" onclick="disconnectBT()">❌ Disconnect Device</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypcTVmfpKD7NbUGegSbjqcn5C6tSxs6heB6Rev1UieupjEkuwhUw-Cs8Qzzs6QzT_3/exec";
+
+    // Device ID Generator & Auto-Login Check
+    function getDeviceId() {
+        let devId = localStorage.getItem("scale_device_id");
+        if (!devId) {
+            devId = "DEV-" + Math.random().toString(36).substr(2, 8).toUpperCase();
+            localStorage.setItem("scale_device_id", devId);
+        }
+        return devId;
+    }
+
+    const myDeviceId = getDeviceId();
+    document.getElementById("show-dev-id").innerText = myDeviceId;
+
+    // ऑटो-लॉगिन चेक: अगर पहले से की सेव है तो सीधा ऐप खोलें
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedKey = localStorage.getItem("saved_access_key");
+        if (savedKey) {
+            unlockApp(savedKey);
+        }
+    });
+
+    async function verifyAccess() {
+        const keyInput = document.getElementById("access-key").value.trim().toUpperCase();
+        const btn = document.getElementById("unlock-btn");
+        const errorMsg = document.getElementById("error-msg");
+
+        if (!keyInput) {
+            errorMsg.innerText = "⚠️ Please enter Access Key!";
+            errorMsg.style.display = "block";
+            return;
+        }
+
+        // मास्टर की या डायरेक्ट बाईपास के लिए
+        if (keyInput === "ADMIN123" || keyInput === "RTX853GNFJFJTFHF") {
+            localStorage.setItem("saved_access_key", keyInput); // की सेव कर ली ताकि दोबारा न मांगे
+            unlockApp(keyInput);
+            return;
+        }
+
+        btn.innerText = "Checking Server...";
+        errorMsg.style.display = "none";
+
+        try {
+            const response = await fetch(`${GOOGLE_SHEET_URL}?key=${keyInput}&device=${myDeviceId}`);
+            const result = (await response.text()).trim();
+
+            if (result === "SUCCESS") {
+                localStorage.setItem("saved_access_key", keyInput); // सफल होने पर सेव करें
+                unlockApp(keyInput);
+            } else if (result === "DEVICE_MISMATCH") {
+                errorMsg.innerText = "🚫 This key is registered on another device!";
+                errorMsg.style.display = "block";
+            } else if (result === "BLOCKED") {
+                errorMsg.innerText = "❌ Your ID has been blocked!";
+                errorMsg.style.display = "block";
+            } else {
+                errorMsg.innerText = "❌ Invalid Access Key!";
+                errorMsg.style.display = "block";
+            }
+        } catch (err) {
+            errorMsg.innerText = "⚠️ Server error! Use master key 'ADMIN123'.";
+            errorMsg.style.display = "block";
+        }
+
+        btn.innerText = "Unlock App";
+    }
+
+    function unlockApp(key) {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("main-app").style.display = "flex";
+    }
+
+    // Keypad & Scale Logic
     let currentInput = "";
 
     function pressKey(num) {
@@ -179,5 +278,5 @@
     }
 </script>
 </body>
-                    </html>
-    
+    </html>
+                                                                     
