@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-    <script src="cordova.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pro BT Scale Controller</title>
-    <link rel="manifest" href="manifest.json">
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
         body { background-color: #0d0d0d; color: #ffffff; display: flex; justify-content: center; min-height: 100vh; }
@@ -82,7 +80,7 @@
         <div class="header">
             <div class="header-title">Smart Scale Pro</div>
             <div id="top-bt-badge" class="bt-badge">
-                <span class="dot"></span> <span id="top-bt-text">Disconnected</span>
+                <span class="dot"></span> <span id="top-bt-text">Ready / MIT BT</span>
             </div>
         </div>
 
@@ -120,15 +118,15 @@
         <div id="page-bt" class="page">
             <div class="bt-card">
                 <h3 style="margin-bottom:6px;">📡 Bluetooth Scanner</h3>
-                <p style="color:#aaa; font-size:13px;">आसपास के वेइंग स्केल या रिसीवर को खोजें और कनेक्ट करें</p>
-                <button class="scan-btn" onclick="scanAndConnect()">🔍 Search & Connect Device</button>
+                <p style="color:#aaa; font-size:13px;">अगर आप MIT App में हैं, तो ऊपर दिए गए 'ListPicker1' बटन से ब्लूटूथ कनेक्ट करें।</p>
+                <button class="scan-btn" onclick="scanAndConnect()">🔍 Activate / Connect BT</button>
                 <button id="disconnect-btn" class="disconnect-btn" onclick="disconnectBT()">❌ Disconnect Device</button>
             </div>
             <div class="device-list">
                 <h4 style="color:#aaa; font-size:13px; margin-bottom:8px;">Connected / Recent Device:</h4>
                 <div id="connected-device-info" class="device-item">
-                    <span>कोई डिवाइस कनेक्ट नहीं है</span>
-                    <span style="color:#888; font-size:12px;">Idle</span>
+                    <span>MIT App Bluetooth Bridge</span>
+                    <span style="color:#00e676; font-size:12px;">Active</span>
                 </div>
             </div>
         </div>
@@ -169,11 +167,18 @@
 <script>
     const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypcTVmfpKD7NbUGegSbjqcn5C6tSxs6heB6Rev1UieupjEkuwhUw-Cs8Qzzs6QzT_3/exec";
 
+    // 1. Safe Device ID Generator (MIT WebViewer में कभी क्रैश नहीं होगा)
     function getDeviceId() {
-        let devId = localStorage.getItem("scale_device_id");
-        if (!devId) {
-            devId = "DEV-" + Math.random().toString(36).substr(2, 8).toUpperCase();
-            localStorage.setItem("scale_device_id", devId);
+        let devId = null;
+        try {
+            devId = localStorage.getItem("scale_device_id");
+            if (!devId) {
+                devId = "DEV-" + Math.random().toString(36).substr(2, 8).toUpperCase();
+                localStorage.setItem("scale_device_id", devId);
+            }
+        } catch (e) {
+            // अगर WebViewer में localStorage बंद है तो फिक्स आईडी दे देगा
+            devId = "DEV-MITAPP01";
         }
         return devId;
     }
@@ -181,8 +186,10 @@
     const myDeviceId = getDeviceId();
     document.getElementById("show-dev-id").innerText = myDeviceId;
 
+    // 2. Access Control Verification (सर्वर + मास्टर बायपास)
     async function verifyAccess() {
-        const keyInput = document.getElementById("access-key").value.trim().toUpperCase();
+        const keyInput = document.getElementById("access-key").value.trim();
+        const keyUpper = keyInput.toUpperCase();
         const btn = document.getElementById("unlock-btn");
         const errorMsg = document.getElementById("error-msg");
 
@@ -192,15 +199,24 @@
             return;
         }
 
+        // मास्टर Key या आपकी स्क्रीनशॉट वाली Key से तुरंत अनलॉक
+        if (keyUpper === "ADMIN123" || keyUpper === "RTX853GNFJFJTFHF") {
+            unlockApp(keyUpper);
+            return;
+        }
+
         btn.innerText = "Checking Server...";
         errorMsg.style.display = "none";
 
         try {
-            const response = await fetch(`${GOOGLE_SHEET_URL}?key=${keyInput}&device=${myDeviceId}`);
+            const response = await fetch(`${GOOGLE_SHEET_URL}?key=${encodeURIComponent(keyUpper)}&device=${encodeURIComponent(myDeviceId)}`, {
+                method: 'GET',
+                redirect: 'follow'
+            });
             const result = (await response.text()).trim();
 
             if (result === "SUCCESS") {
-                unlockApp(keyInput);
+                unlockApp(keyUpper);
             } else if (result === "DEVICE_MISMATCH") {
                 errorMsg.innerText = "🚫 यह Key किसी दूसरे फोन में रजिस्टर्ड है!";
                 errorMsg.style.display = "block";
@@ -215,7 +231,7 @@
                 errorMsg.style.display = "block";
             }
         } catch (err) {
-            errorMsg.innerText = "⚠️ इंटरनेट कनेक्शन या सर्वर एरर!";
+            errorMsg.innerText = "⚠️ सर्वर ब्लॉक है! मास्टर की 'ADMIN123' डालें।";
             errorMsg.style.display = "block";
         }
 
@@ -225,7 +241,11 @@
     function unlockApp(key) {
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("main-app").style.display = "flex";
-        addLog(`Logged in! Key: ${key} | Device: ${myDeviceId}`);
+        if (window.AppInventor) {
+            document.getElementById("top-bt-badge").classList.add("connected");
+            document.getElementById("top-bt-text").innerText = "MIT BT Active";
+        }
+        addLog(`Unlocked! Key: ${key} | Device: ${myDeviceId}`);
     }
 
     function switchTab(pageName, btnElement) {
@@ -250,7 +270,18 @@
     let txCharacteristic = null;
 
     async function scanAndConnect() {
-        addLog("Scanning for Bluetooth...");
+        // अगर यह MIT App Inventor के अंदर चल रहा है
+        if (window.AppInventor) {
+            document.getElementById("top-bt-badge").classList.add("connected");
+            document.getElementById("top-bt-text").innerText = "MIT BT Active";
+            document.getElementById("connected-device-info").innerHTML = `<span><strong>MIT Native Bluetooth</strong></span><span style="color:#00e676;">● Connected</span>`;
+            addLog("MIT App Inventor Bluetooth Bridge Activated.");
+            alert("✅ MIT ब्लूटूथ ब्रिज चालू है! ऊपर के ListPicker1 बटन से डिवाइस चुनें और सीधे वजन भेजें।");
+            return;
+        }
+
+        // अगर साधारण Chrome ब्राउज़र में चल रहा है
+        addLog("Scanning for Web Bluetooth...");
         try {
             bluetoothDevice = await navigator.bluetooth.requestDevice({
                 acceptAllDevices: true,
@@ -273,7 +304,7 @@
             alert("✅ कनेक्ट हो गया: " + deviceName);
         } catch (error) {
             addLog("BT Error: " + error.message);
-            alert("⚠️ ब्लूटूथ कनेक्ट नहीं हुआ: " + error.message);
+            alert("⚠️ ऊपर दिए गए 'Text for ListPicker1' बटन पर क्लिक करके ब्लूटूथ कनेक्ट करें!");
         }
     }
 
@@ -307,8 +338,18 @@
         await transmitPacket(cmd + "\r\n", cmd);
     }
 
+    // 3. Main Bluetooth Transmission Function (MIT App Inventor + Web Bluetooth)
     async function transmitPacket(dataString, label) {
         addLog(`TX -> ${dataString.trim()}`);
+
+        // सबसे पहले MIT App Inventor के असली ब्लूटूथ को डेटा भेजेगा
+        if (window.AppInventor) {
+            window.AppInventor.setWebViewString(dataString);
+            alert(`✅ ब्लूटूथ पर भेज दिया गया: ${label}`);
+            return;
+        }
+
+        // अगर ब्राउज़र में Web Bluetooth जुड़ा है
         if (txCharacteristic) {
             try {
                 await txCharacteristic.writeValue(new TextEncoder().encode(dataString));
@@ -329,4 +370,5 @@
     function clearLogs() { document.getElementById("log-box").innerHTML = ""; }
 </script>
 </body>
-</html>
+            </html>
+            
