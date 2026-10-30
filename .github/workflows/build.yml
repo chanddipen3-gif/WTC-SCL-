@@ -1,0 +1,46 @@
+name: Build Bluetooth APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build Cordova APK with Web Bluetooth
+        run: |
+          npm install -g cordova
+          cordova create app com.wtsscl.app WTSSCL
+          rm -rf app/www/*
+          cp -r * app/www/ 2>/dev/null || true
+          cd app
+          cordova platform add android
+          cordova plugin add cordova-plugin-ble-central
+          cordova plugin add https://github.com/dpa99c/cordova-plugin-webbluetooth.git
+          cordova build android
+
+      - name: Upload Ready APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WTS-SCL-Bluetooth-APK
+          path: app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          
