@@ -140,7 +140,7 @@
             <div class="test-card">
                 <h4>⚙️ Scale Machine Format (यहाँ से बदलकर चेक करें)</h4>
                 <select id="data-format" onchange="if(streamInterval) applyWeight();">
-                    <option value="raw">Simple Number: 02.500 (Default)</option>
+                    <option value="raw">Simple Number: 002.500 (Default)</option>
                     <option value="standard">Standard (=): =002.500</option>
                     <option value="reverse">Reverse (PDS/Ration Scale): =005.200</option>
                     <option value="stgs">POS Format: ST,GS,+002.500kg</option>
@@ -174,7 +174,6 @@
 <script>
     const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypcTVmfpKD7NbUGegSbjqcn5C6tSxs6heB6Rev1UieupjEkuwhUw-Cs8Qzzs6QzT_3/exec";
 
-    // 1. Safe Device ID Generator
     function getDeviceId() {
         let devId = null;
         try {
@@ -192,7 +191,6 @@
     const myDeviceId = getDeviceId();
     document.getElementById("show-dev-id").innerText = myDeviceId;
 
-    // 2. Access Control Verification
     async function verifyAccess() {
         const keyInput = document.getElementById("access-key").value.trim();
         const keyUpper = keyInput.toUpperCase();
@@ -205,7 +203,6 @@
             return;
         }
 
-        // Master Keys
         if (keyUpper === "ADMIN123" || keyUpper === "RTX853GNFJFJTFHF") {
             unlockApp(keyUpper);
             return;
@@ -261,7 +258,6 @@
         btnElement.classList.add('active');
     }
 
-    // 3. Keypad & Display Logic
     let currentInput = "";
     let streamInterval = null;
 
@@ -275,7 +271,7 @@
     function setPreset(val) {
         currentInput = val;
         updateScreen(currentInput);
-        applyWeight(); // बटन दबाते ही सीधे भेजना शुरू करेगा
+        applyWeight();
     }
 
     function clearDisplay() {
@@ -288,7 +284,6 @@
         document.getElementById("display").innerText = val === "" ? "0.000" : val;
     }
 
-    // 4. Bluetooth Connection
     let bluetoothDevice = null;
     let txCharacteristic = null;
 
@@ -300,56 +295,25 @@
             addLog("MIT App Inventor Bridge Ready.");
             return;
         }
-
-        addLog("Scanning Web Bluetooth...");
-        try {
-            bluetoothDevice = await navigator.bluetooth.requestDevice({
-                acceptAllDevices: true,
-                optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb', '6e400001-b5a3-f393-e0a9-e50e24dcca9e', 0xFFE0]
-            });
-            const deviceName = bluetoothDevice.name || "BT Scale";
-            const server = await bluetoothDevice.gatt.connect();
-            
-            document.getElementById("top-bt-badge").classList.add("connected");
-            document.getElementById("top-bt-text").innerText = deviceName;
-            document.getElementById("connected-device-info").innerHTML = `<span><strong>${deviceName}</strong></span><span style="color:#00e676;">● Connected</span>`;
-            document.getElementById("disconnect-btn").style.display = "block";
-
-            const services = await server.getPrimaryServices();
-            if (services.length > 0) {
-                const characteristics = await services[0].getCharacteristics();
-                txCharacteristic = characteristics[0];
-            }
-            addLog("Connected to " + deviceName);
-        } catch (error) {
-            addLog("BT Info: Use MIT ListPicker to connect.");
-        }
     }
 
     function disconnectBT() {
         stopStreaming();
-        if (bluetoothDevice && bluetoothDevice.gatt.connected) bluetoothDevice.gatt.disconnect();
-        txCharacteristic = null;
         document.getElementById("top-bt-badge").classList.remove("connected");
         document.getElementById("top-bt-text").innerText = "Disconnected";
-        document.getElementById("connected-device-info").innerHTML = `<span>कोई डिवाइस कनेक्ट नहीं है</span><span>Disconnected</span>`;
-        document.getElementById("disconnect-btn").style.display = "none";
         addLog("Disconnected.");
     }
 
-    // 5. Data Formatting & Continuous Streaming (असली मशीन जैसा सिस्टम)
     function formatWeightString(weightFloat) {
         const formatType = document.getElementById("data-format").value;
-        const padded = weightFloat.padStart(7, '0'); // जैसे: 002.500
+        const padded = weightFloat.padStart(7, '0');
 
         if (formatType === "stgs") return `ST,GS,+${padded}kg`;
         if (formatType === "plus") return `+${padded}`;
         if (formatType === "standard") return `=${padded}`;
         if (formatType === "reverse") {
-            // 002.500 को उल्टा करके =005.200 बनाएगा (कई राशन और डिजिटल कांटों का फॉर्मेट)
             return "=" + padded.split('').reverse().join('');
         }
-        // raw default
         return `${padded}`;
     }
 
@@ -360,25 +324,49 @@
 
         let packet = formatWeightString(finalWeight);
 
-        if (streamInterval) clearInterval(streamInterval);
-
         document.getElementById("stream-indicator").style.display = "inline";
         document.getElementById("stop-stream-btn").style.display = "block";
-        addLog(`Started Streaming -> ${packet}`);
+        addLog(`Active Weight -> ${packet}`);
 
-        // तुरंत पहली बार भेजें
         transmitPacket(packet);
-
-        // फिर हर 300 मिलीसेकंड में लगातार भेजें ताकि पोर्टल तुरंत पकड़ ले
-        streamInterval = setInterval(() => {
-            transmitPacket(packet);
-        }, 300);
     }
 
     function stopStreaming() {
-        if (streamInterval) {
-            clearInterval(streamInterval);
-            streamInterval = null;
-        }
         document.getElementById("stream-indicator").style.display = "none";
-        document.getElementById("stop-stream-btn").style.display = "none"
+        document.getElementById("stop-stream-btn").style.display = "none";
+        if (window.AppInventor) {
+            window.AppInventor.setWebViewString("");
+        }
+        addLog("Stopped.");
+    }
+
+    function sendCustomCommand() {
+        let cmd = document.getElementById("custom-cmd").value.trim();
+        if (!cmd) return;
+        document.getElementById("stream-indicator").style.display = "inline";
+        document.getElementById("stop-stream-btn").style.display = "block";
+        addLog(`Custom Text -> ${cmd}`);
+        transmitPacket(cmd);
+    }
+
+    async function transmitPacket(dataString) {
+        // MIT App के Clock1 को डेटा सौंप देगा (Clock1 इसे लगातार हर 300ms में भेजेगा)
+        if (window.AppInventor) {
+            window.AppInventor.setWebViewString(dataString);
+            return;
+        }
+    }
+
+    function addLog(msg) {
+        const box = document.getElementById("log-box");
+        box.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function clearLogs() {
+        document.getElementById("log-box").innerHTML = "";
+    }
+</script>
+</body>
+    </html>
+            
