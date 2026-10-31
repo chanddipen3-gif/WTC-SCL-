@@ -31,6 +31,7 @@
         /* PAGE 1: SCALE */
         .display-box { background: #000; border: 2px solid #333; border-radius: 12px; padding: 15px; text-align: right; margin-bottom: 15px; position: relative; }
         .display-label { position: absolute; left: 12px; top: 10px; font-size: 11px; color: #00e676; text-transform: uppercase; }
+        .stream-status { position: absolute; left: 12px; bottom: 10px; font-size: 11px; color: #ff9800; font-weight: bold; display: none; }
         .weight-value { font-family: 'Courier New', monospace; font-size: 44px; font-weight: bold; color: #00e676; }
         .unit { font-size: 18px; color: #00e676; }
         .preset-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
@@ -40,6 +41,7 @@
         .key:active { background: #444; }
         .key-clear { background: #c62828; border: none; }
         .key-apply { background: #00e676; color: #000; font-size: 18px; grid-column: span 3; padding: 16px; margin-top: 4px; border: none; }
+        .key-stop { background: #ff9800; color: #000; font-size: 15px; grid-column: span 3; padding: 12px; margin-top: 4px; border: none; display: none; }
 
         /* PAGE 2: BLUETOOTH */
         .bt-card { background: #222; border-radius: 12px; padding: 16px; margin-bottom: 15px; border: 1px solid #333; text-align: center; }
@@ -88,13 +90,14 @@
         <div id="page-scale" class="page active">
             <div class="display-box">
                 <span class="display-label">Target Weight</span>
+                <span id="stream-indicator" class="stream-status">● LIVE SENDING...</span>
                 <span class="weight-value" id="display">0.000</span>
                 <span class="unit">kg</span>
             </div>
             <div class="preset-row">
+                <button class="preset-btn" onclick="setPreset('2.500')">2.5 Kg</button>
                 <button class="preset-btn" onclick="setPreset('5.000')">5 Kg</button>
                 <button class="preset-btn" onclick="setPreset('10.000')">10 Kg</button>
-                <button class="preset-btn" onclick="setPreset('20.500')">20.5 Kg</button>
                 <button class="preset-btn" onclick="setPreset('35.000')">35 Kg</button>
             </div>
             <div class="keypad">
@@ -110,7 +113,8 @@
                 <button class="key" onclick="pressKey('.')">.</button>
                 <button class="key" onclick="pressKey('0')">0</button>
                 <button class="key key-clear" onclick="clearDisplay()">C</button>
-                <button class="key key-apply" onclick="applyWeight()">⚡ APPLY WEIGHT</button>
+                <button class="key key-apply" onclick="applyWeight()">⚡ APPLY & SEND WEIGHT</button>
+                <button id="stop-stream-btn" class="key key-stop" onclick="stopStreaming()">⏹️ STOP SENDING</button>
             </div>
         </div>
 
@@ -118,7 +122,7 @@
         <div id="page-bt" class="page">
             <div class="bt-card">
                 <h3 style="margin-bottom:6px;">📡 Bluetooth Scanner</h3>
-                <p style="color:#aaa; font-size:13px;">अगर आप MIT App में हैं, तो ऊपर दिए गए 'ListPicker1' बटन से ब्लूटूथ कनेक्ट करें।</p>
+                <p style="color:#aaa; font-size:13px;">MIT App में ऊपर दिए गए 'ListPicker' बटन से मशीन का ब्लूटूथ कनेक्ट करें।</p>
                 <button class="scan-btn" onclick="scanAndConnect()">🔍 Activate / Connect BT</button>
                 <button id="disconnect-btn" class="disconnect-btn" onclick="disconnectBT()">❌ Disconnect Device</button>
             </div>
@@ -134,17 +138,20 @@
         <!-- PAGE 3: TESTING -->
         <div id="page-test" class="page">
             <div class="test-card">
-                <h4>⚙️ Scale Data Format</h4>
-                <select id="data-format">
-                    <option value="standard">Standard: =020.500 (Default)</option>
-                    <option value="stgs">POS Type 1: ST,GS,+020.500kg</option>
-                    <option value="raw">Raw Number: 20.500</option>
+                <h4>⚙️ Scale Machine Format (यहाँ से बदलकर चेक करें)</h4>
+                <select id="data-format" onchange="if(streamInterval) applyWeight();">
+                    <option value="raw">Simple Number: 02.500 (Default)</option>
+                    <option value="standard">Standard (=): =002.500</option>
+                    <option value="reverse">Reverse (PDS/Ration Scale): =005.200</option>
+                    <option value="stgs">POS Format: ST,GS,+002.500kg</option>
+                    <option value="plus">Plus Format: +002.500</option>
                 </select>
+                <p style="color:#888; font-size:11px; margin-top:4px;">* अगर पोर्टल में वज़न न दिखे, तो ऊपर से दूसरा फ़ॉर्मेट चुनकर देखें।</p>
             </div>
             <div class="test-card">
                 <h4>🧪 Custom Command Test</h4>
-                <input type="text" id="custom-cmd" class="custom-input" placeholder="e.g. =015.000 or TEST123">
-                <button class="btn-green" style="padding:10px; font-size:14px;" onclick="sendCustomCommand()">Send Test Packet</button>
+                <input type="text" id="custom-cmd" class="custom-input" placeholder="e.g. =015.000 or 2.500">
+                <button class="btn-green" style="padding:10px; font-size:14px;" onclick="sendCustomCommand()">Send Custom Text</button>
             </div>
             <div class="test-card">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
@@ -159,7 +166,7 @@
         <div class="bottom-nav">
             <button class="nav-item active" onclick="switchTab('scale', this)"><span class="nav-icon">⚖️</span>Scale</button>
             <button class="nav-item" onclick="switchTab('bt', this)"><span class="nav-icon">📡</span>Bluetooth</button>
-            <button class="nav-item" onclick="switchTab('test', this)"><span class="nav-icon">🛠️</span>Testing</button>
+            <button class="nav-item" onclick="switchTab('test', this)"><span class="nav-icon">🛠️</span>Settings</button>
         </div>
     </div>
 </div>
@@ -167,7 +174,7 @@
 <script>
     const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypcTVmfpKD7NbUGegSbjqcn5C6tSxs6heB6Rev1UieupjEkuwhUw-Cs8Qzzs6QzT_3/exec";
 
-    // 1. Safe Device ID Generator (MIT WebViewer में कभी क्रैश नहीं होगा)
+    // 1. Safe Device ID Generator
     function getDeviceId() {
         let devId = null;
         try {
@@ -177,7 +184,6 @@
                 localStorage.setItem("scale_device_id", devId);
             }
         } catch (e) {
-            // अगर WebViewer में localStorage बंद है तो फिक्स आईडी दे देगा
             devId = "DEV-MITAPP01";
         }
         return devId;
@@ -186,7 +192,7 @@
     const myDeviceId = getDeviceId();
     document.getElementById("show-dev-id").innerText = myDeviceId;
 
-    // 2. Access Control Verification (सर्वर + मास्टर बायपास)
+    // 2. Access Control Verification
     async function verifyAccess() {
         const keyInput = document.getElementById("access-key").value.trim();
         const keyUpper = keyInput.toUpperCase();
@@ -199,7 +205,7 @@
             return;
         }
 
-        // मास्टर Key या आपकी स्क्रीनशॉट वाली Key से तुरंत अनलॉक
+        // Master Keys
         if (keyUpper === "ADMIN123" || keyUpper === "RTX853GNFJFJTFHF") {
             unlockApp(keyUpper);
             return;
@@ -231,7 +237,7 @@
                 errorMsg.style.display = "block";
             }
         } catch (err) {
-            errorMsg.innerText = "⚠️ सर्वर ब्लॉक है! मास्टर की 'ADMIN123' डालें।";
+            errorMsg.innerText = "⚠️ सर्वर एरर! मास्टर की 'ADMIN123' डालें।";
             errorMsg.style.display = "block";
         }
 
@@ -245,7 +251,7 @@
             document.getElementById("top-bt-badge").classList.add("connected");
             document.getElementById("top-bt-text").innerText = "MIT BT Active";
         }
-        addLog(`Unlocked! Key: ${key} | Device: ${myDeviceId}`);
+        addLog(`Unlocked! Key: ${key}`);
     }
 
     function switchTab(pageName, btnElement) {
@@ -255,37 +261,51 @@
         btnElement.classList.add('active');
     }
 
+    // 3. Keypad & Display Logic
     let currentInput = "";
+    let streamInterval = null;
+
     function pressKey(num) {
         if (num === '.' && currentInput.includes('.')) return;
         if (currentInput.length > 7) return;
         currentInput += num;
         updateScreen(currentInput);
     }
-    function setPreset(val) { currentInput = val; updateScreen(currentInput); }
-    function clearDisplay() { currentInput = ""; updateScreen("0.000"); }
-    function updateScreen(val) { document.getElementById("display").innerText = val === "" ? "0.000" : val; }
 
+    function setPreset(val) {
+        currentInput = val;
+        updateScreen(currentInput);
+        applyWeight(); // बटन दबाते ही सीधे भेजना शुरू करेगा
+    }
+
+    function clearDisplay() {
+        currentInput = "";
+        updateScreen("0.000");
+        stopStreaming();
+    }
+
+    function updateScreen(val) {
+        document.getElementById("display").innerText = val === "" ? "0.000" : val;
+    }
+
+    // 4. Bluetooth Connection
     let bluetoothDevice = null;
     let txCharacteristic = null;
 
     async function scanAndConnect() {
-        // अगर यह MIT App Inventor के अंदर चल रहा है
         if (window.AppInventor) {
             document.getElementById("top-bt-badge").classList.add("connected");
             document.getElementById("top-bt-text").innerText = "MIT BT Active";
             document.getElementById("connected-device-info").innerHTML = `<span><strong>MIT Native Bluetooth</strong></span><span style="color:#00e676;">● Connected</span>`;
-            addLog("MIT App Inventor Bluetooth Bridge Activated.");
-            alert("✅ MIT ब्लूटूथ ब्रिज चालू है! ऊपर के ListPicker1 बटन से डिवाइस चुनें और सीधे वजन भेजें।");
+            addLog("MIT App Inventor Bridge Ready.");
             return;
         }
 
-        // अगर साधारण Chrome ब्राउज़र में चल रहा है
-        addLog("Scanning for Web Bluetooth...");
+        addLog("Scanning Web Bluetooth...");
         try {
             bluetoothDevice = await navigator.bluetooth.requestDevice({
                 acceptAllDevices: true,
-                optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e', 0xFFE0]
+                optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb', '6e400001-b5a3-f393-e0a9-e50e24dcca9e', 0xFFE0]
             });
             const deviceName = bluetoothDevice.name || "BT Scale";
             const server = await bluetoothDevice.gatt.connect();
@@ -301,14 +321,13 @@
                 txCharacteristic = characteristics[0];
             }
             addLog("Connected to " + deviceName);
-            alert("✅ कनेक्ट हो गया: " + deviceName);
         } catch (error) {
-            addLog("BT Error: " + error.message);
-            alert("⚠️ ऊपर दिए गए 'Text for ListPicker1' बटन पर क्लिक करके ब्लूटूथ कनेक्ट करें!");
+            addLog("BT Info: Use MIT ListPicker to connect.");
         }
     }
 
     function disconnectBT() {
+        stopStreaming();
         if (bluetoothDevice && bluetoothDevice.gatt.connected) bluetoothDevice.gatt.disconnect();
         txCharacteristic = null;
         document.getElementById("top-bt-badge").classList.remove("connected");
@@ -318,57 +337,48 @@
         addLog("Disconnected.");
     }
 
+    // 5. Data Formatting & Continuous Streaming (असली मशीन जैसा सिस्टम)
     function formatWeightString(weightFloat) {
         const formatType = document.getElementById("data-format").value;
-        const padded = weightFloat.padStart(7, '0');
-        if (formatType === "stgs") return `ST,GS,+${padded}kg\r\n`;
-        if (formatType === "raw") return `${weightFloat}\r\n`;
-        return `=${padded}\r\n`;
+        const padded = weightFloat.padStart(7, '0'); // जैसे: 002.500
+
+        if (formatType === "stgs") return `ST,GS,+${padded}kg`;
+        if (formatType === "plus") return `+${padded}`;
+        if (formatType === "standard") return `=${padded}`;
+        if (formatType === "reverse") {
+            // 002.500 को उल्टा करके =005.200 बनाएगा (कई राशन और डिजिटल कांटों का फॉर्मेट)
+            return "=" + padded.split('').reverse().join('');
+        }
+        // raw default
+        return `${padded}`;
     }
 
-    async function applyWeight() {
+    function applyWeight() {
         let finalWeight = parseFloat(currentInput || "0").toFixed(3);
+        currentInput = finalWeight;
         updateScreen(finalWeight);
-        await transmitPacket(formatWeightString(finalWeight), `${finalWeight} Kg`);
+
+        let packet = formatWeightString(finalWeight);
+
+        if (streamInterval) clearInterval(streamInterval);
+
+        document.getElementById("stream-indicator").style.display = "inline";
+        document.getElementById("stop-stream-btn").style.display = "block";
+        addLog(`Started Streaming -> ${packet}`);
+
+        // तुरंत पहली बार भेजें
+        transmitPacket(packet);
+
+        // फिर हर 300 मिलीसेकंड में लगातार भेजें ताकि पोर्टल तुरंत पकड़ ले
+        streamInterval = setInterval(() => {
+            transmitPacket(packet);
+        }, 300);
     }
 
-    async function sendCustomCommand() {
-        let cmd = document.getElementById("custom-cmd").value;
-        if (!cmd) return alert("पहले कमांड लिखें!");
-        await transmitPacket(cmd + "\r\n", cmd);
-    }
-
-    // 3. Main Bluetooth Transmission Function (MIT App Inventor + Web Bluetooth)
-    async function transmitPacket(dataString, label) {
-        addLog(`TX -> ${dataString.trim()}`);
-
-        // सबसे पहले MIT App Inventor के असली ब्लूटूथ को डेटा भेजेगा
-        if (window.AppInventor) {
-            window.AppInventor.setWebViewString(dataString);
-            alert(`✅ ब्लूटूथ पर भेज दिया गया: ${label}`);
-            return;
+    function stopStreaming() {
+        if (streamInterval) {
+            clearInterval(streamInterval);
+            streamInterval = null;
         }
-
-        // अगर ब्राउज़र में Web Bluetooth जुड़ा है
-        if (txCharacteristic) {
-            try {
-                await txCharacteristic.writeValue(new TextEncoder().encode(dataString));
-                alert(`✅ मशीन में भेज दिया गया: ${label}`);
-            } catch (err) {
-                alert("❌ एरर: " + err.message);
-            }
-        } else {
-            alert(`🛠️ [Simulation मोड]\nसेट वजन: ${label}\nपैकेट: ${dataString.trim()}`);
-        }
-    }
-
-    function addLog(msg) {
-        const box = document.getElementById("log-box");
-        box.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
-        box.scrollTop = box.scrollHeight;
-    }
-    function clearLogs() { document.getElementById("log-box").innerHTML = ""; }
-</script>
-</body>
-    </html>
-                    
+        document.getElementById("stream-indicator").style.display = "none";
+        document.getElementById("stop-stream-btn").style.display = "none"
