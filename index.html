@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ence PDS Scale Pro - Final</title>
+    <title>Ence PDS Scale Pro - Secure</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
         body { background-color: #0d0d0d; color: #ffffff; display: flex; justify-content: center; min-height: 100vh; }
@@ -14,6 +14,14 @@
         .bt-badge { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: #2c2c2c; color: #00e676; display: flex; align-items: center; gap: 6px; }
         .dot { height: 8px; width: 8px; background: currentColor; border-radius: 50%; display: inline-block; }
 
+        /* Login Screen */
+        #login-screen { padding: 40px 20px; text-align: center; margin: auto 0; }
+        #login-screen h2 { color: #00e676; margin-bottom: 10px; }
+        .input-box { width: 100%; padding: 14px; margin: 15px 0; border-radius: 10px; border: 1px solid #444; background: #252525; color: #fff; font-size: 16px; text-align: center; }
+        .btn-green { width: 100%; padding: 14px; background: #00e676; color: #000; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .dev-id-tag { margin-top: 20px; font-size: 12px; color: #777; background: #111; padding: 8px; border-radius: 6px; border: 1px dashed #333; word-break: break-all; }
+
+        #main-app { display: none; flex-direction: column; flex: 1; justify-content: space-between; }
         .page { display: block; padding: 14px; flex: 1; overflow-y: auto; }
 
         .display-box { background: #000; border: 2px solid #333; border-radius: 12px; padding: 12px 15px; text-align: right; margin-bottom: 10px; position: relative; }
@@ -42,7 +50,19 @@
 <body>
 
 <div class="app-wrapper">
-    <div id="main-app" style="display:flex; flex-direction:column; flex:1; justify-content:space-between;">
+
+    <!-- LOGIN SCREEN WITH ACCESS KEY -->
+    <div id="login-screen">
+        <h2>🔒 Access Control</h2>
+        <p style="color:#aaa; font-size:14px;">अपनी रजिस्टर्ड Access Key डालें</p>
+        <input type="text" id="access-key" class="input-box" placeholder="Enter Access Key">
+        <button id="unlock-btn" class="btn-green" onclick="verifyAccess()">Unlock App</button>
+        <p id="error-msg" style="color:#ff5252; font-size:14px; margin-top:12px; display:none;"></p>
+        <div class="dev-id-tag">📱 Secure Device ID: <span id="show-dev-id" style="color:#00e676; font-weight:bold;">Loading...</span></div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-app">
         <div class="header">
             <div class="header-title">Ence PDS Scale Pro</div>
             <div id="top-bt-badge" class="bt-badge">
@@ -58,7 +78,6 @@
                 <span class="unit">kg</span>
             </div>
 
-            <!-- मशीन का फ़ॉर्मेट बदलने का बार -->
             <div class="quick-mode-bar">
                 <select id="data-format">
                     <option value="pds_7">Mode 1: 002.500 (PDS Standard)</option>
@@ -112,6 +131,86 @@
 </div>
 
 <script>
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypcTVmfpKD7NbUGegSbjqcn5C6tSxs6heB6Rev1UieupjEkuwhUw-Cs8Qzzs6QzT_3/exec";
+
+    // 1. सुधारित और पूरी तरह से यूनिक डिवाइस आईडी जनरेटर (अब हर फोन में बिल्कुल अलग बनेगी)
+    function getSecureDeviceId() {
+        let devId = null;
+        try {
+            devId = localStorage.getItem("pence_secure_device_id");
+            if (!devId) {
+                // रैंडम और टाइमस्टैम्प मिलाकर एकदम यूनीक आईडी बनाएगा ताकि डुप्लीकेट न हो
+                const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+                const timePart = Date.now().toString(36).toUpperCase();
+                devId = "DEV-ENCE-" + randomPart + "-" + timePart;
+                localStorage.setItem("pence_secure_device_id", devId);
+            }
+        } catch (e) {
+            devId = "DEV-FALLBACK-" + Math.floor(Math.random() * 90000 + 10000);
+        }
+        return devId;
+    }
+
+    const myDeviceId = getSecureDeviceId();
+    document.getElementById("show-dev-id").innerText = myDeviceId;
+
+    // 2. सुधरा हुआ एक्सेस की वेरिफिकेशन सिस्टम
+    async function verifyAccess() {
+        const keyInput = document.getElementById("access-key").value.trim().toUpperCase();
+        const btn = document.getElementById("unlock-btn");
+        const errorMsg = document.getElementById("error-msg");
+
+        if (!keyInput) {
+            errorMsg.innerText = "⚠️ कृपया Access Key डालें!";
+            errorMsg.style.display = "block";
+            return;
+        }
+
+        // मास्टर की बाईपास
+        if (keyInput === "ADMIN123" || keyInput === "RTX853GNFJFJTFHF") {
+            unlockApp(keyInput);
+            return;
+        }
+
+        btn.innerText = "Verifying Key...";
+        errorMsg.style.display = "none";
+
+        try {
+            const response = await fetch(`${GOOGLE_SHEET_URL}?key=${encodeURIComponent(keyInput)}&device=${encodeURIComponent(myDeviceId)}`, {
+                method: 'GET',
+                redirect: 'follow'
+            });
+            const result = (await response.text()).trim();
+
+            if (result === "SUCCESS") {
+                unlockApp(keyInput);
+            } else if (result === "DEVICE_MISMATCH") {
+                errorMsg.innerText = "🚫 यह Key किसी दूसरे डिवाइस में रजिस्टर्ड है!";
+                errorMsg.style.display = "block";
+            } else if (result === "BLOCKED") {
+                errorMsg.innerText = "❌ आपकी Access Key ब्लॉक कर दी गई है!";
+                errorMsg.style.display = "block";
+            } else if (result === "INVALID_KEY") {
+                errorMsg.innerText = "❌ गलत Access Key!";
+                errorMsg.style.display = "block";
+            } else {
+                errorMsg.innerText = "⚠️ रिस्पॉन्स एरर: " + result;
+                errorMsg.style.display = "block";
+            }
+        } catch (err) {
+            errorMsg.innerText = "⚠️ सर्वर कनेक्शन विफल! मास्टर की 'ADMIN123' उपयोग करें।";
+            errorMsg.style.display = "block";
+        }
+
+        btn.innerText = "Unlock App";
+    }
+
+    function unlockApp(key) {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("main-app").style.display = "flex";
+        addLog(`Access Granted! Key verified.`);
+    }
+
     let currentInput = "";
 
     function pressKey(num) {
@@ -199,4 +298,5 @@
 </script>
 </body>
     </html>
+        
     
